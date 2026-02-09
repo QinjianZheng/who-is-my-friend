@@ -58,6 +58,16 @@ export default function HomeClient() {
   const joinNameRef = useRef<HTMLInputElement | null>(null);
   const previousGameIdRef = useRef<string | null>(null);
 
+  const resetLocalRoomState = () => {
+    setRoom(null);
+    setPlayerId(null);
+    setIsOwner(false);
+    setSelectedGameId("");
+    setSelectedRoleId("");
+    setMyRoleId(null);
+    setReveal(null);
+  };
+
   const getOrCreateSessionId = () => {
     if (typeof window === "undefined") {
       return "";
@@ -150,6 +160,10 @@ export default function HomeClient() {
       setMyRoleId(null);
     });
 
+    socketInstance.on("room:left", () => {
+      resetLocalRoomState();
+    });
+
     socketInstance.on("connect", () => {
       const existingSessionId = getOrCreateSessionId();
       socketInstance.emit("session:restore", { sessionId: existingSessionId });
@@ -236,6 +250,17 @@ export default function HomeClient() {
     }
     socket.emit("room:reset", { code: room.code });
     setReveal(null);
+  };
+
+  const leaveRoom = () => {
+    if (!socket) {
+      return;
+    }
+    socket.emit("room:leave");
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem("wimf:sessionId");
+    }
+    resetLocalRoomState();
   };
 
   const shareRoom = async () => {
@@ -352,6 +377,12 @@ export default function HomeClient() {
                       className="rounded-full border border-ink/10 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ink"
                     >
                       Share link
+                    </button>
+                    <button
+                      onClick={leaveRoom}
+                      className="rounded-full border border-ember/40 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-ember"
+                    >
+                      Leave room
                     </button>
                     {shareStatus ? (
                       <span className="text-xs uppercase tracking-widest text-ink/50">

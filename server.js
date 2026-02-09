@@ -122,6 +122,36 @@ function emitError(socket, message) {
   socket.emit("room:error", { message });
 }
 
+function removePlayerFromRoom(io, room, playerId, sessionId, socketId) {
+  const player = room.players.get(playerId);
+  if (!player) {
+    return;
+  }
+  if (player.disconnectTimer) {
+    clearTimeout(player.disconnectTimer);
+    player.disconnectTimer = null;
+  }
+  room.players.delete(playerId);
+  if (sessionId) {
+    sessionIndex.delete(sessionId);
+  }
+  if (socketId) {
+    socketIndex.delete(socketId);
+  }
+
+  if (room.players.size === 0) {
+    rooms.delete(room.code);
+    return;
+  }
+
+  if (room.ownerId === playerId) {
+    const nextOwner = room.players.values().next().value;
+    room.ownerId = nextOwner.id;
+  }
+
+  emitRoomState(io, room);
+}
+
 app.prepare().then(() => {
   const server = http.createServer((req, res) => handle(req, res));
   const io = new Server(server, {
@@ -267,6 +297,24 @@ app.prepare().then(() => {
       resetRoles(room);
       emitRoomState(io, room);
       io.to(room.code).emit("room:reset");
+    });
+
+    socket.on("room:leave", () => {
+      const index = socketIndex.get(socket.id);
+      if (!index) {
+        return;
+      }
+      const room = rooms.get(index.code);
+      if (!room) {
+        socketIndex.delete(socket.id);
+        if (index.sessionId) {
+          sessionIndex.delete(index.sessionId);
+        }
+        return;
+      }
+      socket.leave(room.code);
+      removePlayerFromRoom(io, room, index.playerId, index.sessionId, socket.id);
+      socket.emit("room:left");
     });
 
     socket.on("role:submit", ({ code, roleId }) => {
