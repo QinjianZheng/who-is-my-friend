@@ -154,6 +154,10 @@ function emitError(socket, message) {
   socket.emit("room:error", { message });
 }
 
+function normalizeName(name) {
+  return String(name || "").trim().toLowerCase();
+}
+
 function removePlayerFromRoom(io, room, playerId, sessionId, socketId) {
   const player = room.players.get(playerId);
   if (!player) {
@@ -258,6 +262,14 @@ app.prepare().then(() => {
       const room = rooms.get(code);
       if (!room) {
         emitError(socket, "Room not found");
+        return;
+      }
+      const normalizedName = normalizeName(name);
+      const nameTaken = Array.from(room.players.values()).some(
+        (player) => normalizeName(player.name) === normalizedName
+      );
+      if (nameTaken) {
+        emitError(socket, "That name is already taken in this room");
         return;
       }
       if (room.phase !== "lobby") {
