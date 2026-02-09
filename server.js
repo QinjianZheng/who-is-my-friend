@@ -91,62 +91,102 @@ function getRevealForPlayer(room, player) {
   if (!game) {
     return { gameId: room.gameId, visiblePlayers: [] };
   }
-  const rule = game.revealRules.find((entry) => entry.roleId === player.roleId) || {
-    scope: "self"
-  };
-  const scope = rule.scope ?? null;
+
   const players = Array.from(room.players.values());
   const roleById = new Map(game.roles.map((role) => [role.id, role]));
 
-  if (scope === "all") {
-    return {
-      gameId: room.gameId,
-      visiblePlayers: players.map((item) => ({
+  const resolveVisiblePlayers = (rule) => {
+    const scope = rule?.scope ?? null;
+    const includeSelf = rule?.includeSelf === true;
+    const visibleRoleIds = new Set(rule?.visibleRoleIds || []);
+    const visiblePartyIds = new Set(rule?.visiblePartyIds || []);
+    const excludeRoleIds = new Set(rule?.excludeRoleIds || []);
+    const excludePartyIds = new Set(rule?.excludePartyIds || []);
+    const maskRoleIds = new Set(rule?.mask?.roleIds || rule?.maskRoleIds || []);
+    const maskPartyIds = new Set(rule?.mask?.partyIds || []);
+    const maskedRoleId = rule?.mask?.asRoleId || rule?.maskedRoleId || null;
+    const requireAllRoleIds = rule?.mask?.requireAllRoleIds || [];
+    const presentRoleIds = new Set(players.map((item) => item.roleId));
+    const maskEnabled = requireAllRoleIds.every((id) => presentRoleIds.has(id));
+
+    let candidates = [];
+    if (scope === "all") {
+      candidates = players;
+    } else if (scope === "self") {
+      candidates = players.filter((item) => item.id === player.id);
+    } else {
+      candidates = players.filter((item) => {
+        if (includeSelf && item.id === player.id) {
+          return true;
+        }
+        const role = roleById.get(item.roleId);
+        if (visibleRoleIds.has(item.roleId)) {
+          return true;
+        }
+        if (role && role.partyId && visiblePartyIds.has(role.partyId)) {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    candidates = candidates.filter((item) => {
+      if (excludeRoleIds.has(item.roleId)) {
+        return false;
+      }
+      const role = roleById.get(item.roleId);
+      if (role && role.partyId && excludePartyIds.has(role.partyId)) {
+        return false;
+      }
+      return true;
+    });
+
+    return candidates.map((item) => {
+      const role = roleById.get(item.roleId);
+      let roleId = item.roleId;
+      if (maskedRoleId && maskEnabled) {
+        if (maskRoleIds.has(item.roleId)) {
+          roleId = maskedRoleId;
+        } else if (role && role.partyId && maskPartyIds.has(role.partyId)) {
+          roleId = maskedRoleId;
+        }
+      }
+      return {
         playerId: item.id,
         name: item.name,
-        roleId: item.roleId
-      }))
-    };
-  }
+        roleId
+      };
+    });
+  };
 
-  if (scope === "self") {
+  if (game.visibility) {
+    const globalRule = game.visibility.global || null;
+    const roleRule =
+      (game.visibility.byRole || []).find((entry) => entry.roleId === player.roleId) ||
+      game.visibility.default ||
+      { scope: "self" };
+    const visibleMap = new Map();
+    if (globalRule) {
+      resolveVisiblePlayers(globalRule).forEach((item) => {
+        visibleMap.set(item.playerId, item);
+      });
+    }
+    resolveVisiblePlayers(roleRule).forEach((item) => {
+      visibleMap.set(item.playerId, item);
+    });
     return {
       gameId: room.gameId,
-      visiblePlayers: [
-        {
-          playerId: player.id,
-          name: player.name,
-          roleId: player.roleId
-        }
-      ]
+      visiblePlayers: Array.from(visibleMap.values())
     };
   }
 
-  const visibleRoleIds = new Set(rule.visibleRoleIds || []);
-  const visiblePartyIds = new Set(rule.visiblePartyIds || []);
-  const includeSelf = rule.includeSelf === true;
-
-  const visiblePlayers = players.filter((item) => {
-    if (includeSelf && item.id === player.id) {
-      return true;
-    }
-    const role = roleById.get(item.roleId);
-    if (visibleRoleIds.has(item.roleId)) {
-      return true;
-    }
-    if (role && role.partyId && visiblePartyIds.has(role.partyId)) {
-      return true;
-    }
-    return false;
-  });
-
+  const fallbackRule =
+    (game.revealRules || []).find((entry) => entry.roleId === player.roleId) || {
+      scope: "self"
+    };
   return {
     gameId: room.gameId,
-    visiblePlayers: visiblePlayers.map((item) => ({
-      playerId: item.id,
-      name: item.name,
-      roleId: item.roleId
-    }))
+    visiblePlayers: resolveVisiblePlayers(fallbackRule)
   };
 }
 

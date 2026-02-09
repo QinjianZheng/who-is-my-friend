@@ -15,12 +15,59 @@ type GameDefinition = {
   name: string;
   roles: RoleDefinition[];
   parties: { id: string; name: string }[];
-  revealRules: {
+  visibility?: {
+    global?: {
+      scope?: "all" | "self";
+      includeSelf?: boolean;
+      visibleRoleIds?: string[];
+      visiblePartyIds?: string[];
+      excludeRoleIds?: string[];
+      excludePartyIds?: string[];
+      mask?: {
+        roleIds?: string[];
+        partyIds?: string[];
+        asRoleId?: string;
+        requireAllRoleIds?: string[];
+      };
+    };
+    byRole?: {
+      roleId: string;
+      scope?: "all" | "self";
+      includeSelf?: boolean;
+      visibleRoleIds?: string[];
+      visiblePartyIds?: string[];
+      excludeRoleIds?: string[];
+      excludePartyIds?: string[];
+      mask?: {
+        roleIds?: string[];
+        partyIds?: string[];
+        asRoleId?: string;
+        requireAllRoleIds?: string[];
+      };
+    }[];
+    default?: {
+      scope?: "all" | "self";
+      includeSelf?: boolean;
+      visibleRoleIds?: string[];
+      visiblePartyIds?: string[];
+      excludeRoleIds?: string[];
+      excludePartyIds?: string[];
+      mask?: {
+        roleIds?: string[];
+        partyIds?: string[];
+        asRoleId?: string;
+        requireAllRoleIds?: string[];
+      };
+    };
+  };
+  revealRules?: {
     roleId: string;
     scope?: "all" | "self";
     visibleRoleIds?: string[];
     visiblePartyIds?: string[];
     includeSelf?: boolean;
+    maskRoleIds?: string[];
+    maskedRoleId?: string;
   }[];
 };
 
@@ -198,6 +245,30 @@ export default function HomeClient() {
     }
     return map;
   }, [currentGame]);
+
+  const partyNameByRoleId = useMemo(() => {
+    const map = new Map<string, string>();
+    if (currentGame) {
+      const partyMap = new Map(currentGame.parties.map((party) => [party.id, party.name]));
+      currentGame.roles.forEach((role) => {
+        if (role.partyId && partyMap.has(role.partyId)) {
+          map.set(role.id, partyMap.get(role.partyId) ?? "");
+        }
+      });
+    }
+    return map;
+  }, [currentGame]);
+
+  const getRevealLabel = (roleId: string) => {
+    return partyNameByRoleId.get(roleId) ?? roleNameById.get(roleId) ?? roleId;
+  };
+
+  const currentPlayerName = useMemo(() => {
+    if (!room || !playerId) {
+      return "";
+    }
+    return room.players.find((player) => player.id === playerId)?.name ?? "";
+  }, [room, playerId]);
 
   const allRolesSubmitted = room
     ? room.players.every((player) => player.hasSubmittedRole)
@@ -528,20 +599,31 @@ export default function HomeClient() {
             </section>
 
             <section className="rounded-3xl border border-clay bg-white/90 p-6 shadow-sm">
-              <h3 className="text-lg">Role visibility</h3>
+              <h3 className="text-lg">You</h3>
+              <div className="mt-4 rounded-2xl border border-clay/70 bg-sand px-4 py-3">
+                <p className="text-sm font-semibold text-ink">
+                  {currentPlayerName || "Player"}
+                </p>
+                <p className="text-xs text-ink/60">
+                  {myRoleId ? `Role: ${roleNameById.get(myRoleId) ?? myRoleId}` : "Role not set"}
+                </p>
+              </div>
+              <h3 className="mt-8 text-lg">Role visibility</h3>
               {reveal ? (
                 <div className="mt-4 space-y-3">
-                  {reveal.visiblePlayers.map((player) => (
+                  {reveal.visiblePlayers
+                    .filter((player) => player.playerId !== playerId)
+                    .map((player) => (
                     <div
                       key={player.playerId}
                       className="rounded-2xl border border-clay/70 bg-sand px-4 py-3"
                     >
                       <p className="text-sm font-semibold text-ink">{player.name}</p>
                       <p className="text-xs text-ink/60">
-                        {roleNameById.get(player.roleId) ?? player.roleId}
+                        {getRevealLabel(player.roleId)}
                       </p>
                     </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-ink/70">
