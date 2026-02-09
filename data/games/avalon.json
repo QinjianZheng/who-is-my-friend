@@ -1,0 +1,52 @@
+{
+  "id": "avalon",
+  "name": "The Resistance: Avalon",
+  "parties": [
+    { "id": "good", "name": "Loyal Servants of Arthur" },
+    { "id": "evil", "name": "Minions of Mordred" }
+  ],
+  "roles": [
+    { "id": "loyal-servant", "name": "Loyal Servant of Arthur", "partyId": "good" },
+    { "id": "merlin", "name": "Merlin", "partyId": "good" },
+    { "id": "percival", "name": "Percival", "partyId": "good" },
+    { "id": "minion", "name": "Minion of Mordred", "partyId": "evil" },
+    { "id": "assassin", "name": "Assassin", "partyId": "evil" },
+    { "id": "morgana", "name": "Morgana", "partyId": "evil" },
+    { "id": "mordred", "name": "Mordred", "partyId": "evil" },
+    { "id": "oberon", "name": "Oberon", "partyId": "evil" }
+  ],
+  "revealRules": [
+    { "roleId": "loyal-servant", "scope": "self" },
+    {
+      "roleId": "merlin",
+      "visibleRoleIds": ["assassin", "morgana", "minion", "oberon"],
+      "includeSelf": true
+    },
+    {
+      "roleId": "percival",
+      "visibleRoleIds": ["merlin", "morgana"],
+      "includeSelf": true
+    },
+    {
+      "roleId": "minion",
+      "visibleRoleIds": ["assassin", "morgana", "minion", "mordred"],
+      "includeSelf": true
+    },
+    {
+      "roleId": "assassin",
+      "visibleRoleIds": ["assassin", "morgana", "minion", "mordred"],
+      "includeSelf": true
+    },
+    {
+      "roleId": "morgana",
+      "visibleRoleIds": ["assassin", "morgana", "minion", "mordred"],
+      "includeSelf": true
+    },
+    {
+      "roleId": "mordred",
+      "visibleRoleIds": ["assassin", "morgana", "minion", "mordred"],
+      "includeSelf": true
+    },
+    { "roleId": "oberon", "scope": "self" }
+  ]
+}

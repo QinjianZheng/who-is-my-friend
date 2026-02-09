@@ -91,9 +91,12 @@ function getRevealForPlayer(room, player) {
   if (!game) {
     return { gameId: room.gameId, visiblePlayers: [] };
   }
-  const rule = game.revealRules.find((entry) => entry.roleId === player.roleId);
-  const scope = rule?.scope ?? "self";
+  const rule = game.revealRules.find((entry) => entry.roleId === player.roleId) || {
+    scope: "self"
+  };
+  const scope = rule.scope ?? null;
   const players = Array.from(room.players.values());
+  const roleById = new Map(game.roles.map((role) => [role.id, role]));
 
   if (scope === "all") {
     return {
@@ -106,15 +109,44 @@ function getRevealForPlayer(room, player) {
     };
   }
 
+  if (scope === "self") {
+    return {
+      gameId: room.gameId,
+      visiblePlayers: [
+        {
+          playerId: player.id,
+          name: player.name,
+          roleId: player.roleId
+        }
+      ]
+    };
+  }
+
+  const visibleRoleIds = new Set(rule.visibleRoleIds || []);
+  const visiblePartyIds = new Set(rule.visiblePartyIds || []);
+  const includeSelf = rule.includeSelf === true;
+
+  const visiblePlayers = players.filter((item) => {
+    if (includeSelf && item.id === player.id) {
+      return true;
+    }
+    const role = roleById.get(item.roleId);
+    if (visibleRoleIds.has(item.roleId)) {
+      return true;
+    }
+    if (role && role.partyId && visiblePartyIds.has(role.partyId)) {
+      return true;
+    }
+    return false;
+  });
+
   return {
     gameId: room.gameId,
-    visiblePlayers: [
-      {
-        playerId: player.id,
-        name: player.name,
-        roleId: player.roleId
-      }
-    ]
+    visiblePlayers: visiblePlayers.map((item) => ({
+      playerId: item.id,
+      name: item.name,
+      roleId: item.roleId
+    }))
   };
 }
 

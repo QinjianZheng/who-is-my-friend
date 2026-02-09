@@ -15,7 +15,13 @@ type GameDefinition = {
   name: string;
   roles: RoleDefinition[];
   parties: { id: string; name: string }[];
-  revealRules: { roleId: string; scope: "all" | "self" }[];
+  revealRules: {
+    roleId: string;
+    scope?: "all" | "self";
+    visibleRoleIds?: string[];
+    visiblePartyIds?: string[];
+    includeSelf?: boolean;
+  }[];
 };
 
 type RoomPlayer = {
