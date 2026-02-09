@@ -52,25 +52,25 @@
       },
       {
         "roleId": "minion",
-        "visiblePartyIds": ["evil"],
+        "visiblePartyIds": ["evil", "good"],
         "excludeRoleIds": ["oberon"],
         "includeSelf": true
       },
       {
         "roleId": "assassin",
-        "visiblePartyIds": ["evil"],
+        "visiblePartyIds": ["evil", "good"],
         "excludeRoleIds": ["oberon"],
         "includeSelf": true
       },
       {
         "roleId": "morgana",
-        "visiblePartyIds": ["evil"],
+        "visiblePartyIds": ["evil", "good"],
         "excludeRoleIds": ["oberon"],
         "includeSelf": true
       },
       {
         "roleId": "mordred",
-        "visiblePartyIds": ["evil"],
+        "visiblePartyIds": ["evil", "good"],
         "excludeRoleIds": ["oberon"],
         "includeSelf": true
       },
