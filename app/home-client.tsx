@@ -8,6 +8,11 @@ type RoleDefinition = {
   id: string;
   name: string;
   partyId?: string;
+  visibility?: {
+    roleId: string;
+    scope: "party" | "mask" | "role";
+    mask?: string;
+  }[];
 };
 
 type GameDefinition = {
@@ -15,60 +20,6 @@ type GameDefinition = {
   name: string;
   roles: RoleDefinition[];
   parties: { id: string; name: string }[];
-  visibility?: {
-    global?: {
-      scope?: "all" | "self";
-      includeSelf?: boolean;
-      visibleRoleIds?: string[];
-      visiblePartyIds?: string[];
-      excludeRoleIds?: string[];
-      excludePartyIds?: string[];
-      mask?: {
-        roleIds?: string[];
-        partyIds?: string[];
-        asRoleId?: string;
-        requireAllRoleIds?: string[];
-      };
-    };
-    byRole?: {
-      roleId: string;
-      scope?: "all" | "self";
-      includeSelf?: boolean;
-      visibleRoleIds?: string[];
-      visiblePartyIds?: string[];
-      excludeRoleIds?: string[];
-      excludePartyIds?: string[];
-      mask?: {
-        roleIds?: string[];
-        partyIds?: string[];
-        asRoleId?: string;
-        requireAllRoleIds?: string[];
-      };
-    }[];
-    default?: {
-      scope?: "all" | "self";
-      includeSelf?: boolean;
-      visibleRoleIds?: string[];
-      visiblePartyIds?: string[];
-      excludeRoleIds?: string[];
-      excludePartyIds?: string[];
-      mask?: {
-        roleIds?: string[];
-        partyIds?: string[];
-        asRoleId?: string;
-        requireAllRoleIds?: string[];
-      };
-    };
-  };
-  revealRules?: {
-    roleId: string;
-    scope?: "all" | "self";
-    visibleRoleIds?: string[];
-    visiblePartyIds?: string[];
-    includeSelf?: boolean;
-    maskRoleIds?: string[];
-    maskedRoleId?: string;
-  }[];
 };
 
 type RoomPlayer = {
@@ -87,7 +38,12 @@ type RoomState = {
 
 type RevealPayload = {
   gameId: string;
-  visiblePlayers: { playerId: string; name: string; roleId: string }[];
+  visiblePlayers: {
+    playerId: string;
+    name: string;
+    roleId: string;
+    roleLabel?: string;
+  }[];
 };
 
 export default function HomeClient() {
@@ -259,8 +215,8 @@ export default function HomeClient() {
     return map;
   }, [currentGame]);
 
-  const getRevealLabel = (roleId: string) => {
-    return partyNameByRoleId.get(roleId) ?? roleNameById.get(roleId) ?? roleId;
+  const getRevealLabel = (roleId: string, roleLabel?: string) => {
+    return roleLabel ?? partyNameByRoleId.get(roleId) ?? roleNameById.get(roleId) ?? roleId;
   };
 
   const currentPlayerName = useMemo(() => {
@@ -620,7 +576,7 @@ export default function HomeClient() {
                     >
                       <p className="text-sm font-semibold text-ink">{player.name}</p>
                       <p className="text-xs text-ink/60">
-                        {getRevealLabel(player.roleId)}
+                        {getRevealLabel(player.roleId, player.roleLabel)}
                       </p>
                     </div>
                     ))}

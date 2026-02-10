@@ -2,81 +2,215 @@
   "id": "avalon",
   "name": "The Resistance: Avalon",
   "parties": [
-    { "id": "good", "name": "Loyal Servants of Arthur" },
-    { "id": "evil", "name": "Minions of Mordred" }
+    {
+      "id": "good",
+      "name": "Loyal Servants of Arthur"
+    },
+    {
+      "id": "evil",
+      "name": "Minions of Mordred"
+    }
   ],
   "roles": [
-    { "id": "loyal-servant", "name": "Loyal Servant of Arthur", "partyId": "good" },
-    { "id": "merlin", "name": "Merlin", "partyId": "good" },
-    { "id": "percival", "name": "Percival", "partyId": "good" },
-    { "id": "mason", "name": "Mason", "partyId": "good" },
-    { "id": "lancelot-good", "name": "Lancelot (Good)", "partyId": "good" },
-    { "id": "galahad", "name": "Galahad", "partyId": "good" },
-    { "id": "minion", "name": "Minion of Mordred", "partyId": "evil" },
-    { "id": "assassin", "name": "Assassin", "partyId": "evil" },
-    { "id": "morgana", "name": "Morgana", "partyId": "evil" },
-    { "id": "mordred", "name": "Mordred", "partyId": "evil" },
-    { "id": "oberon", "name": "Oberon", "partyId": "evil" },
-    { "id": "lancelot-evil", "name": "Lancelot (Evil)", "partyId": "evil" }
-  ],
-  "visibility": {
-    "global": {
-      "visibleRoleIds": ["galahad"],
-      "mask": { "roleIds": ["galahad"], "asRoleId": "good-party" }
+    {
+      "id": "loyal-servant",
+      "name": "Loyal Servant of Arthur",
+      "partyId": "good",
+      "visibility": []
     },
-    "byRole": [
-      { "roleId": "loyal-servant", "scope": "self" },
-      { "roleId": "lancelot-good", "scope": "self" },
-      { "roleId": "galahad", "scope": "self" },
-      {
-        "roleId": "merlin",
-        "visiblePartyIds": ["good", "evil"],
-        "excludeRoleIds": ["mordred"],
-        "includeSelf": true,
-        "mask": { "partyIds": ["good"], "asRoleId": "Good (party)" }
-      },
-      {
-        "roleId": "percival",
-        "visibleRoleIds": ["merlin", "morgana"],
-        "includeSelf": true,
-        "mask": {
-          "roleIds": ["merlin", "morgana"],
-          "asRoleId": "Merlin or Morgana",
-          "requireAllRoleIds": ["merlin", "morgana"]
+    {
+      "id": "merlin",
+      "name": "Merlin",
+      "partyId": "good",
+      "visibility": [
+        {
+          "roleId": "loyal-servant",
+          "scope": "party"
+        },
+        {
+          "roleId": "percival",
+          "scope": "party"
+        },
+        {
+          "roleId": "minion",
+          "scope": "party"
+        },
+        {
+          "roleId": "assassin",
+          "scope": "party"
+        },
+        {
+          "roleId": "morgana",
+          "scope": "party"
+        },
+        {
+          "roleId": "oberon",
+          "scope": "party"
         }
-      },
-      {
-        "roleId": "mason",
-        "visibleRoleIds": ["mason"],
-        "includeSelf": true
-      },
-      {
-        "roleId": "minion",
-        "visiblePartyIds": ["evil", "good"],
-        "excludeRoleIds": ["oberon"],
-        "includeSelf": true
-      },
-      {
-        "roleId": "assassin",
-        "visiblePartyIds": ["evil", "good"],
-        "excludeRoleIds": ["oberon"],
-        "includeSelf": true
-      },
-      {
-        "roleId": "morgana",
-        "visiblePartyIds": ["evil", "good"],
-        "excludeRoleIds": ["oberon"],
-        "includeSelf": true
-      },
-      {
-        "roleId": "mordred",
-        "visiblePartyIds": ["evil", "good"],
-        "excludeRoleIds": ["oberon"],
-        "includeSelf": true
-      },
-      { "roleId": "oberon", "scope": "self" },
-      { "roleId": "lancelot-evil", "scope": "self" }
-    ],
-    "default": { "scope": "self" }
-  }
+      ]
+    },
+    {
+      "id": "percival",
+      "name": "Percival",
+      "partyId": "good",
+      "visibility": [
+        {
+          "roleId": "merlin",
+          "scope": "mask",
+          "mask": "Merlin or Morgana"
+        },
+        {
+          "roleId": "morgana",
+          "scope": "mask",
+          "mask": "Merlin or Morgana"
+        }
+      ]
+    },
+    {
+      "id": "minion",
+      "name": "Minion of Mordred",
+      "partyId": "evil",
+      "visibility": [
+        {
+          "roleId": "loyal-servant",
+          "scope": "party"
+        },
+        {
+          "roleId": "merlin",
+          "scope": "party"
+        },
+        {
+          "roleId": "percival",
+          "scope": "party"
+        },
+        {
+          "roleId": "minion",
+          "scope": "party"
+        },
+        {
+          "roleId": "assassin",
+          "scope": "party"
+        },
+        {
+          "roleId": "morgana",
+          "scope": "party"
+        },
+        {
+          "roleId": "mordred",
+          "scope": "party"
+        }
+      ]
+    },
+    {
+      "id": "assassin",
+      "name": "Assassin",
+      "partyId": "evil",
+      "visibility": [
+        {
+          "roleId": "loyal-servant",
+          "scope": "party"
+        },
+        {
+          "roleId": "merlin",
+          "scope": "party"
+        },
+        {
+          "roleId": "percival",
+          "scope": "party"
+        },
+        {
+          "roleId": "minion",
+          "scope": "party"
+        },
+        {
+          "roleId": "assassin",
+          "scope": "party"
+        },
+        {
+          "roleId": "morgana",
+          "scope": "party"
+        },
+        {
+          "roleId": "mordred",
+          "scope": "party"
+        }
+      ]
+    },
+    {
+      "id": "morgana",
+      "name": "Morgana",
+      "partyId": "evil",
+      "visibility": [
+        {
+          "roleId": "loyal-servant",
+          "scope": "party"
+        },
+        {
+          "roleId": "merlin",
+          "scope": "party"
+        },
+        {
+          "roleId": "percival",
+          "scope": "party"
+        },
+        {
+          "roleId": "minion",
+          "scope": "party"
+        },
+        {
+          "roleId": "assassin",
+          "scope": "party"
+        },
+        {
+          "roleId": "morgana",
+          "scope": "party"
+        },
+        {
+          "roleId": "mordred",
+          "scope": "party"
+        }
+      ]
+    },
+    {
+      "id": "mordred",
+      "name": "Mordred",
+      "partyId": "evil",
+      "visibility": [
+        {
+          "roleId": "loyal-servant",
+          "scope": "party"
+        },
+        {
+          "roleId": "merlin",
+          "scope": "party"
+        },
+        {
+          "roleId": "percival",
+          "scope": "party"
+        },
+        {
+          "roleId": "minion",
+          "scope": "party"
+        },
+        {
+          "roleId": "assassin",
+          "scope": "party"
+        },
+        {
+          "roleId": "morgana",
+          "scope": "party"
+        },
+        {
+          "roleId": "mordred",
+          "scope": "party"
+        }
+      ]
+    },
+    {
+      "id": "oberon",
+      "name": "Oberon",
+      "partyId": "evil",
+      "visibility": []
+    }
+  ]
 }
