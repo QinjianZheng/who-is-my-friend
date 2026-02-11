@@ -64,26 +64,34 @@ errors during long-polling. You can also force WebSocket-only transport.
 ## Game Data Format
 
 Games live in [data/games](data/games). Each file defines roles and visibility
-rules. Example fields:
+rules using per-role visibility entries. Example:
 
 ```
 {
 	"id": "avalon",
 	"name": "The Resistance: Avalon",
 	"parties": [{ "id": "good", "name": "Loyal Servants of Arthur" }],
-	"roles": [{ "id": "merlin", "name": "Merlin", "partyId": "good" }],
-	"revealRules": [
-		{ "roleId": "merlin", "visibleRoleIds": ["assassin"], "includeSelf": true }
+	"roles": [
+		{
+			"id": "merlin",
+			"name": "Merlin",
+			"partyId": "good",
+			"visibility": [
+				{ "roleId": "assassin", "scope": "party" }
+			]
+		}
 	]
 }
 ```
 
-Supported reveal rule fields:
+Supported visibility fields (per role):
 
-- `scope`: `self` or `all` (simple rules)
-- `visibleRoleIds`: list of role IDs this role can see
-- `visiblePartyIds`: list of party IDs this role can see
-- `includeSelf`: include the current player in the reveal list
+- `roleId`: role to reveal.
+- `scope`:
+	- `party`: reveal the target role's party name.
+	- `mask`: reveal a masked label.
+	- `role`: reveal the target role's name.
+- `mask`: label to show when `scope` is `mask`.
 
 ## Scripts
 
