@@ -9,6 +9,11 @@ const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+function log(message) {
+  console.log(`[${new Date().toISOString()}] ${message}`);
+}
+
+
 function loadGames() {
   const gamesDir = path.join(__dirname, "data", "games");
   if (!fs.existsSync(gamesDir)) {
@@ -21,12 +26,24 @@ function loadGames() {
   });
 }
 
+function formatPayload(args) {
+  try {
+    const serialized = JSON.stringify(args);
+    if (serialized.length > 2000) {
+      return `${serialized.slice(0, 2000)}...`;
+    }
+    return serialized;
+  } catch (error) {
+    return `"<unserializable payload: ${error.message}>"`;
+  }
+}
+
 const games = loadGames();
 const gameMap = new Map(games.map((game) => [game.id, game]));
 const rooms = new Map();
 const socketIndex = new Map();
 const sessionIndex = new Map();
-const disconnectGraceMs = 60000;
+const disconnectGraceMs = 60 * 60 * 1000;
 
 function generateRoomCode() {
   let code = "";
@@ -156,6 +173,7 @@ function removePlayerFromRoom(io, room, playerId, sessionId, socketId) {
   }
 
   if (room.players.size === 0) {
+    log(`[room] ${room.code} cleaned up (no players remaining)`);
     rooms.delete(room.code);
     return;
   }
@@ -175,6 +193,11 @@ app.prepare().then(() => {
   });
 
   io.on("connection", (socket) => {
+    log(`[socket] connected ${socket.id}`);
+    socket.onAny((eventName, ...args) => {
+      log(`[socket] ${socket.id} event ${eventName} payload ${formatPayload(args)}`);
+    });
+
     socket.on("session:restore", ({ sessionId }) => {
       if (!sessionId) {
         return;
@@ -264,28 +287,7 @@ app.prepare().then(() => {
       emitRoomState(io, room);
     });
 
-    socket.on("room:selectGame", ({ code, gameId }) => {
-      const room = rooms.get(code);
-      if (!room) {
-        emitError(socket, "Room not found");
-        return;
-      }
-      const index = socketIndex.get(socket.id);
-      if (!index || index.playerId !== room.ownerId) {
-        emitError(socket, "Only the host can select the game");
-        return;
-      }
-      if (!gameMap.has(gameId)) {
-        emitError(socket, "Unknown game");
-        return;
-      }
-      room.gameId = gameId;
-      room.phase = "lobby";
-      resetRoles(room);
-      emitRoomState(io, room);
-    });
-
-    socket.on("room:start", ({ code }) => {
+    socket.on("room:start", ({ code, gameId }) => {
       const room = rooms.get(code);
       if (!room) {
         emitError(socket, "Room not found");
@@ -296,10 +298,16 @@ app.prepare().then(() => {
         emitError(socket, "Only the host can start the game");
         return;
       }
-      if (!room.gameId) {
+      const nextGameId = gameId || room.gameId;
+      if (!nextGameId) {
         emitError(socket, "Select a game first");
         return;
       }
+      if (!gameMap.has(nextGameId)) {
+        emitError(socket, "Unknown game");
+        return;
+      }
+      room.gameId = nextGameId;
       room.phase = "roles";
       resetRoles(room);
       emitRoomState(io, room);
@@ -406,7 +414,8 @@ app.prepare().then(() => {
       });
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
+      log(`[socket] ${socket.id} disconnected: ${reason}`);
       const index = socketIndex.get(socket.id);
       if (!index) {
         return;
@@ -434,6 +443,7 @@ app.prepare().then(() => {
         sessionIndex.delete(player.sessionId);
 
         if (room.players.size === 0) {
+          log(`[room] ${room.code} cleaned up (disconnect timeout)`);
           rooms.delete(room.code);
           return;
         }
@@ -452,6 +462,6 @@ app.prepare().then(() => {
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    log(`Server running on http://localhost:${port}`);
   });
 });

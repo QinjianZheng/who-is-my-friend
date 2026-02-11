@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { ChangeEvent, ClipboardEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 
 type RoleDefinition = {
@@ -48,6 +48,8 @@ type RevealPayload = {
 
 export default function HomeClient() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const [games, setGames] = useState<GameDefinition[]>([]);
@@ -65,7 +67,10 @@ export default function HomeClient() {
   const [error, setError] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const joinNameRef = useRef<HTMLInputElement | null>(null);
+  const joinCodeRefs = useRef<Array<HTMLInputElement | null>>([]);
   const previousGameIdRef = useRef<string | null>(null);
+
+  const joinCodeLength = 4;
 
   const resetLocalRoomState = () => {
     setRoom(null);
@@ -75,6 +80,57 @@ export default function HomeClient() {
     setSelectedRoleId("");
     setMyRoleId(null);
     setReveal(null);
+  };
+
+  const clearCodeQuery = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get("code")) {
+      return;
+    }
+    router.replace(pathname);
+  };
+
+  const updateJoinCode = (digits: string[]) => {
+    const nextCode = digits.join("");
+    setJoinCode(nextCode);
+    if (typeof window === "undefined") {
+      return;
+    }
+    const queryCode = new URLSearchParams(window.location.search).get("code");
+    if (queryCode && nextCode !== queryCode) {
+      clearCodeQuery();
+    }
+  };
+
+  const handleJoinCodeDigitChange = (index: number, event: ChangeEvent<HTMLInputElement>) => {
+    const raw = event.target.value.replace(/\D/g, "");
+    const digits = Array.from({ length: joinCodeLength }, (_, i) => joinCode[i] ?? "");
+    digits[index] = raw ? raw[raw.length - 1] : "";
+    updateJoinCode(digits);
+    if (raw && index < joinCodeLength - 1) {
+      joinCodeRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleJoinCodeKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Backspace" && !joinCode[index] && index > 0) {
+      joinCodeRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleJoinCodePaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, joinCodeLength);
+    if (!pasted) {
+      return;
+    }
+    event.preventDefault();
+    const digits = Array.from({ length: joinCodeLength }, (_, i) => pasted[i] ?? "");
+    updateJoinCode(digits);
+    const nextIndex = Math.min(pasted.length, joinCodeLength - 1);
+    joinCodeRefs.current[nextIndex]?.focus();
   };
 
   const getOrCreateSessionId = () => {
@@ -114,12 +170,13 @@ export default function HomeClient() {
   useEffect(() => {
     const code = searchParams.get("code");
     if (code) {
-      setJoinCode(code);
+      const normalized = code.replace(/\D/g, "").slice(0, joinCodeLength);
+      setJoinCode(normalized);
       if (!room) {
         joinNameRef.current?.focus();
       }
     }
-  }, [searchParams, room]);
+  }, [joinCodeLength, searchParams, room]);
 
   useEffect(() => {
     const storedSessionId = getOrCreateSessionId();
@@ -144,7 +201,13 @@ export default function HomeClient() {
     socketInstance.on("room:state", (state: RoomState) => {
       const previousGameId = previousGameIdRef.current;
       setRoom(state);
-      setSelectedGameId(state.gameId ?? "");
+      const isOwnerNow = Boolean(playerId && state.ownerId === playerId);
+      setSelectedGameId((previous) => {
+        if (state.gameId) {
+          return state.gameId;
+        }
+        return isOwnerNow ? previous : "";
+      });
       if (state.phase !== "reveal") {
         setReveal(null);
       }
@@ -160,7 +223,11 @@ export default function HomeClient() {
     });
 
     socketInstance.on("room:error", (payload) => {
-      setError(payload.message || "Something went wrong");
+      const message = payload.message || "Something went wrong";
+      setError(message);
+      if (message === "Room not found") {
+        clearCodeQuery();
+      }
     });
 
     socketInstance.on("room:reset", () => {
@@ -188,6 +255,16 @@ export default function HomeClient() {
       setIsOwner(room.ownerId === playerId);
     }
   }, [room, playerId]);
+
+  useEffect(() => {
+    if (!shareStatus) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setShareStatus(null);
+    }, 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [shareStatus]);
 
   const currentGame = useMemo(
     () => games.find((game) => game.id === selectedGameId),
@@ -230,36 +307,35 @@ export default function HomeClient() {
     ? room.players.every((player) => player.hasSubmittedRole)
     : false;
 
+  const isJoinCodeValid = /^\d{4}$/.test(joinCode.trim());
+  const trimmedJoinName = joinName.trim();
+  const trimmedCreateName = createName.trim();
+  const isJoinNameValid = trimmedJoinName.length > 0 && trimmedJoinName.length <= 10;
+  const canJoinRoom = Boolean(socket && isJoinNameValid && isJoinCodeValid);
+
   const createRoom = () => {
-    if (!socket || !createName.trim()) {
+    if (!socket || !trimmedCreateName || trimmedCreateName.length > 10) {
       return;
     }
-    socket.emit("room:create", { name: createName.trim(), sessionId: sessionId ?? "" });
+    socket.emit("room:create", { name: trimmedCreateName, sessionId: sessionId ?? "" });
   };
 
   const joinRoom = () => {
-    if (!socket || !joinName.trim() || !joinCode.trim()) {
+    if (!socket || !trimmedJoinName || trimmedJoinName.length > 10 || !joinCode.trim()) {
       return;
     }
     socket.emit("room:join", {
-      name: joinName.trim(),
+      name: trimmedJoinName,
       code: joinCode.trim(),
       sessionId: sessionId ?? ""
     });
   };
 
-  const selectGame = () => {
+  const startGame = () => {
     if (!socket || !room || !selectedGameId) {
       return;
     }
-    socket.emit("room:selectGame", { code: room.code, gameId: selectedGameId });
-  };
-
-  const startGame = () => {
-    if (!socket || !room) {
-      return;
-    }
-    socket.emit("room:start", { code: room.code });
+    socket.emit("room:start", { code: room.code, gameId: selectedGameId });
   };
 
   const submitRole = () => {
@@ -301,13 +377,7 @@ export default function HomeClient() {
       return;
     }
     const url = `${window.location.origin}?code=${room.code}`;
-    const text = `Join my room in Who Is My Friend with code ${room.code}`;
     try {
-      if (navigator.share) {
-        await navigator.share({ title: "Who Is My Friend", text, url });
-        setShareStatus("Shared");
-        return;
-      }
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
         setShareStatus("Link copied");
@@ -315,7 +385,7 @@ export default function HomeClient() {
       }
       setShareStatus("Copy failed");
     } catch {
-      setShareStatus("Share cancelled");
+      setShareStatus("Copy failed");
     }
   };
 
@@ -345,6 +415,50 @@ export default function HomeClient() {
         {!room ? (
           <div className="mt-10 grid gap-6 md:grid-cols-2">
             <section className="rounded-3xl border border-clay bg-white/80 p-6 shadow-sm">
+              <h2 className="text-2xl">Join with a code</h2>
+              <p className="mt-2 text-sm text-ink/70">Enter the 4-digit code from the host.</p>
+              <div className="mt-6 flex flex-col gap-3">
+                <label className="text-xs uppercase tracking-widest text-ink/50">Room code</label>
+                <div className="flex gap-2">
+                  {Array.from({ length: joinCodeLength }, (_, index) => (
+                    <input
+                      key={`code-${index}`}
+                      ref={(element) => {
+                        joinCodeRefs.current[index] = element;
+                      }}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="\d*"
+                      maxLength={1}
+                      className="h-12 w-12 rounded-xl border border-clay bg-white text-center text-lg"
+                      value={joinCode[index] ?? ""}
+                      onChange={(event) => handleJoinCodeDigitChange(index, event)}
+                      onKeyDown={(event) => handleJoinCodeKeyDown(index, event)}
+                      onPaste={handleJoinCodePaste}
+                    />
+                  ))}
+                </div>
+                <label className="text-xs uppercase tracking-widest text-ink/50">Your name</label>
+                <input
+                  className="rounded-xl border border-clay bg-white px-4 py-3 text-base"
+                  placeholder="Name"
+                  value={joinName}
+                  onChange={(event) => setJoinName(event.target.value)}
+                  maxLength={10}
+                  ref={joinNameRef}
+                />
+                <button
+                  onClick={joinRoom}
+                  disabled={!canJoinRoom}
+                  className="mt-2 rounded-xl border border-ink/10 bg-ink px-4 py-3 text-sm font-semibold uppercase tracking-widest text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Join room
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-clay bg-white/80 p-6 shadow-sm">
               <h2 className="text-2xl">Create a room</h2>
               <p className="mt-2 text-sm text-ink/70">You will be the host and choose the game.</p>
               <div className="mt-6 flex flex-col gap-3">
@@ -354,40 +468,13 @@ export default function HomeClient() {
                   placeholder="Name"
                   value={createName}
                   onChange={(event) => setCreateName(event.target.value)}
+                  maxLength={10}
                 />
                 <button
                   onClick={createRoom}
                   className="mt-2 rounded-xl bg-moss px-4 py-3 text-sm font-semibold uppercase tracking-widest text-white"
                 >
                   Create room
-                </button>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-clay bg-white/80 p-6 shadow-sm">
-              <h2 className="text-2xl">Join with a code</h2>
-              <p className="mt-2 text-sm text-ink/70">Enter the 4-digit code from the host.</p>
-              <div className="mt-6 flex flex-col gap-3">
-                <label className="text-xs uppercase tracking-widest text-ink/50">Room code</label>
-                <input
-                  className="rounded-xl border border-clay bg-white px-4 py-3 text-base"
-                  placeholder="1234"
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value)}
-                />
-                <label className="text-xs uppercase tracking-widest text-ink/50">Your name</label>
-                <input
-                  className="rounded-xl border border-clay bg-white px-4 py-3 text-base"
-                  placeholder="Name"
-                  value={joinName}
-                  onChange={(event) => setJoinName(event.target.value)}
-                  ref={joinNameRef}
-                />
-                <button
-                  onClick={joinRoom}
-                  className="mt-2 rounded-xl border border-ink/10 bg-ink px-4 py-3 text-sm font-semibold uppercase tracking-widest text-white"
-                >
-                  Join room
                 </button>
               </div>
             </section>
@@ -462,15 +549,9 @@ export default function HomeClient() {
                     </select>
                     <div className="flex flex-wrap gap-3">
                       <button
-                        onClick={selectGame}
-                        className="rounded-xl border border-moss/40 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-widest text-moss"
-                      >
-                        Lock game
-                      </button>
-                      <button
                         onClick={startGame}
-                        disabled={!room.gameId}
-                        className="rounded-xl bg-moss px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white"
+                        disabled={!selectedGameId}
+                        className="rounded-xl bg-moss px-4 py-3 text-xs font-semibold uppercase tracking-widest text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Start setup
                       </button>
@@ -567,19 +648,26 @@ export default function HomeClient() {
               <h3 className="mt-8 text-lg">Role visibility</h3>
               {reveal ? (
                 <div className="mt-4 space-y-3">
-                  {reveal.visiblePlayers
-                    .filter((player) => player.playerId !== playerId)
-                    .map((player) => (
-                    <div
-                      key={player.playerId}
-                      className="rounded-2xl border border-clay/70 bg-sand px-4 py-3"
-                    >
-                      <p className="text-sm font-semibold text-ink">{player.name}</p>
-                      <p className="text-xs text-ink/60">
-                        {getRevealLabel(player.roleId, player.roleLabel)}
-                      </p>
-                    </div>
-                    ))}
+                  {reveal.visiblePlayers.filter((player) => player.playerId !== playerId).length ===
+                  0 ? (
+                    <p className="text-sm text-ink/70">
+                      No one is revealed to your role.
+                    </p>
+                  ) : (
+                    reveal.visiblePlayers
+                      .filter((player) => player.playerId !== playerId)
+                      .map((player) => (
+                        <div
+                          key={player.playerId}
+                          className="rounded-2xl border border-clay/70 bg-sand px-4 py-3"
+                        >
+                          <p className="text-sm font-semibold text-ink">{player.name}</p>
+                          <p className="text-xs text-ink/60">
+                            {getRevealLabel(player.roleId, player.roleLabel)}
+                          </p>
+                        </div>
+                      ))
+                  )}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-ink/70">

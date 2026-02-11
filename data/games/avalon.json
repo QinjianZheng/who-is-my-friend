@@ -24,14 +24,6 @@
       "partyId": "good",
       "visibility": [
         {
-          "roleId": "loyal-servant",
-          "scope": "party"
-        },
-        {
-          "roleId": "percival",
-          "scope": "party"
-        },
-        {
           "roleId": "minion",
           "scope": "party"
         },
@@ -72,18 +64,6 @@
       "partyId": "evil",
       "visibility": [
         {
-          "roleId": "loyal-servant",
-          "scope": "party"
-        },
-        {
-          "roleId": "merlin",
-          "scope": "party"
-        },
-        {
-          "roleId": "percival",
-          "scope": "party"
-        },
-        {
           "roleId": "minion",
           "scope": "party"
         },
@@ -106,18 +86,6 @@
       "name": "Assassin",
       "partyId": "evil",
       "visibility": [
-        {
-          "roleId": "loyal-servant",
-          "scope": "party"
-        },
-        {
-          "roleId": "merlin",
-          "scope": "party"
-        },
-        {
-          "roleId": "percival",
-          "scope": "party"
-        },
         {
           "roleId": "minion",
           "scope": "party"
@@ -142,18 +110,6 @@
       "partyId": "evil",
       "visibility": [
         {
-          "roleId": "loyal-servant",
-          "scope": "party"
-        },
-        {
-          "roleId": "merlin",
-          "scope": "party"
-        },
-        {
-          "roleId": "percival",
-          "scope": "party"
-        },
-        {
           "roleId": "minion",
           "scope": "party"
         },
@@ -176,18 +132,6 @@
       "name": "Mordred",
       "partyId": "evil",
       "visibility": [
-        {
-          "roleId": "loyal-servant",
-          "scope": "party"
-        },
-        {
-          "roleId": "merlin",
-          "scope": "party"
-        },
-        {
-          "roleId": "percival",
-          "scope": "party"
-        },
         {
           "roleId": "minion",
           "scope": "party"
